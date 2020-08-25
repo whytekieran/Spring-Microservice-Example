@@ -1,5 +1,5 @@
 # Spring-Microservice-Example
-Spring Microservice Example that has three services movie-catalog-service, ratings-data-service and movie-info-service. 
+Spring Microservice Example that has four services discovery-service, movie-catalog-service, ratings-data-service and movie-info-service. 
 
 **Brief overview of how it works.**
 
@@ -16,3 +16,6 @@ Then passes it back to movie-catalog-service
 4. The movie-catalog-service consolidates all the data then returns it back to the end user. 
 
 This application also introduces the basic idea of discovery services (using Eureka) and fault tolerance/resilience through timeouts and circuit breaker pattern (using Hystrix)
+Eureka is used to find which service to hit without hard coding URLS and some basic circuit breaking with fallback is in place if the movie-info-service fails (try running application without this service to see fallback)
+
+To run first start the discovery service followed by the other microservices. Each microservice is a spring boot application.
