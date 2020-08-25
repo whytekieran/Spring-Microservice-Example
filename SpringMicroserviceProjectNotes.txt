@@ -1,0 +1,197 @@
+																				Movie Rating Microservice
+
+https://www.youtube.com/watch?v=y8IQb4ofjDo&list=PLqq-6Pq4lTTZSKAFG6aCDVDP86Qx4lNas																				
+It will consist of three microservices to start. 1 to consolidate and return data, the other two are called by the first service.
+
+The services:
+1. Movies Catelogue Service - Given a username it will return an array of movies that user has watched and rated. Input: username Output: Movie List with details
+2. Movie Info service - Given a movie id it returns movie details. Input: Movie id Output Movie Details
+3. Ratings data service - Returns movie ratings for a user. Input: user id Output: Movie id and rating
+
+So service 1 calls service 3 then based of response calls service 2.
+
+So we start by building three microservices which essentially are just three separate spring boot applications, then we will make them talk to one another.
+We will first make them talk the basic naive way then we will use a service discovery framework to do it which is much better.
+
+3 Projects
+movie-catalog-service
+movie-info-service
+ratings-data-service
+
+1st the movie catalog service does the calls, to begin with we use RestTemplate for this to make the HTTP calls to the other services. There is also an example of
+using WebClient which is an asynchronous way of doing java progamming to call the Rating service. Its called reactive programming and is event driven. We then revert
+the webclient back to RestTemplate for rating service calls. Webclient was just an example on how that can be used. Both are thread safe.
+
+Note: Its always better to return objects in responses rather than lists because we have more flexibility to change the object. Adding a new field wont break preexisting code
+so best to try and include lists inside an object. 
+
+Some security things that can be added, use HTTPS, add authentication details in the headers.
+
+NEXT STAGE
+
+So at this point we have used rest template and webclient to make rest calls for us. Part of these calls include using hard coded uri's to ping other microservices.
+However hardcoding uris can be sketchy, they can change especially when you deploy to the cloud. Uri's become more dynamic, you may also have load balancing which means you
+could have multiple servers with different IP's all hosting the same microservice. What you want is something more dynamic. This is where discovery services 
+come into play
+
+Client side service discovery
+Service discovery is a must in microservices. So how does it work? Imagine you have a service the requires 3 other services, how does it locate them? What we need is
+another layer between these services. A layer or "discovery server" where these various addresses are stored and mapped to particular services. So basically the 
+discovery server knows where the services are. Client calls discovery server and says "i need this service", the discovery server sends back the correct url and 
+the client calls it.
+
+So the discovery server starts and every service that wants to be discovered registers with that discovery server. The client talks to the discovery server and says what 
+service it needs then the discovery server sends back corresponding URL. More dynamic but uses more bandwith. This is called client side discovery, the client does the work
+by calling the discovery server and then calls the service itself.
+
+Server side service discovery
+Heres the difference, we still have a discovery server however the client tells the server to contact a particular service and says what the payload is. The discovery server
+makes the call and sends the response. Technally its not discovering anything for a client its just passing a message but the term will do for consistency.
+Spring Cloud uses client side service discovery. You can also have caching on the discovery server. 
+
+Eureka is a Service Discovery framework and integrates well with spring. It was created by Netflix. We will use Spring Cloud and Eureka to discover those URL's instead of
+hard coding them. Discovery Server = Eureka Server and the individual Services are called Eureka Clients.
+
+Steps here:
+-Start a Eureka Server
+	-You dont actually download a Eureka server, it runs on Tomcat. Instead create a Spring Boot Application with Eureka dependencies. Specifically Eureka server for the server 
+	and Eureka client dependency for all the services/clients
+
+-Have microservices register (publish) by using Eureka client.
+-Have microservices locate (consume) by using Eureka client.
+
+Note the Eureka client knew where Eureka Server was because it checked the default port, if the Eureka server was using a different port then you would have to specify this 
+inside the client application.properties file.
+
+How does fault tolerence work? WHat happens is an instance goes down. Imagine a service registers with the Eureka discovery server but a few minutes later it goes down. 
+Then the client asks for the service address, gets it but cant reach it because it went down after registration. How do we fix this?
+The solution is called heartbeats. By default, the Eureka clients (instances) ping the Eureka Server on a regular basis to let it know they are still running okay. If the Eureka
+server doesnt recieve this ping every X amount of time it will remove it from the registry and assume its down. If the discovery server goes down the client will try to get the
+service it needs from cache.
+
+NEXT STAGE
+https://www.youtube.com/watch?v=o8RO38KbWvA&list=PLqq-6Pq4lTTbXZY_elyGv7IkKrfkSrX5e&index=1
+At this point we have a few microservices with a service discovery server helping them all communicate with each other. Now we move on to another stage.
+
+Fault Tolerence and Resilience
+
+-Challenges with availability
+-Making microservices fault tolerent and resilient
+
+We will discuss the various challenges we face then use a particular set of technologies to fix them. You will always encounter these problems when building
+microservices, you may use different technolgies to fix them however the problems will be the same.
+
+What is Fault Tolerence & Resilience?
+
+Fault Tolerence - If there is a fault what is the impact? How much tolerence does it have for that fault. Will the whole microservice architecture go down or only a part of it?
+Basically talking about a single fault.
+Resilience - How many faults can a system tolerate, this indicates its resilience. Talking about multiple faults.
+
+In the previous lesson we built three microservices that communicated with each other about movie information via a discovery server. The data returned however was
+hardcoded. Before we go into the crux of this workshop we will make one change. We will use something called MovieDB to get the movie information.
+It contains information for whatever movie id you pass. We will use it as an example of making an external call to an existing API to get live information for users. Its a good
+example of making an external call while also introducing points of failure by making external calls. The more external calls, the more likelyhood you have of there being a 
+point of failure. MovieDB is basically website like IMDB with an API.
+
+So now.....
+The ratings data is created by the init function. This data now contains real movie ids. Once the movie catalog service gets back this data it will now use those real ids to 
+call movie info service like usual however this service now makes a call to an external API called MovieDB and retrieve real movie data. Instead of it being hard coded
+
+Now that we have added that change we can go back to fault tolerence and resilience. So what happens if a service goes down? What can we do to make this resilient?
+First lets ask what the issues with microservices are and how we can solve them:
+
+1. An instance can go down?
+The solution here is simple, we create more than once instance so if one goes down there are backups. Service discovery like eureka makes this easy.
+
+2. An Instance is slow? https://www.youtube.com/watch?v=TNLhCK5S0d8&list=PLqq-6Pq4lTTbXZY_elyGv7IkKrfkSrX5e&index=6 (this video and the ones that follow covers the notes below)
+This is a big issue. For example lets say the external API we call (MovieDB) is slow. If thats slow then the service that called it will be slow and so on. Its a dominoe effect.
+
+The service thats is slow can even cause calls between unrelated services to be slow. For example lets refer to our three services movie-catalog-service, movie-info-service 
+and ratings-data-service. Imagine movie-info-service which calls the external api is slow. The ratings-data-service may have nothing to do with it but both these services get called by
+movie-catalog-service. Now movie catalog is slowing because its waiting a long time for replies and it only has so many threads it can delegate for requests. Imagine a new request
+comes in. It cannot open a new thread (usually you specify max thread amount) because all of them are currently in use waiting for slow replies from movie info. Now this begins to 
+affect calls to the rating-data-service because a new thread cant be created to call it. Youtube video link above explains in detail.  
+
+So how can we solve a problem like this? We need to create timeouts. We basically say if a thread/request is taking to long, end the thread. You good increase the size of the 
+thread pool but doing this is a temporary fix and it will eventually be back to the same issue. The natural reaction for people when a site is slow is to click refresh which
+only add more requests and adds to the problem. So how do we set a timeout? Our project uses spring RestTemplate to make API calls. We could add a parameter to the call stating 
+the timeout. This ensures the thread pool wont be overloaded, it will definitely help but will it solve the problem?
+
+The answer is no, only partly. If we set a timeout of 3 seconds on each request we could definitely clear the thread pool quicker, so how is it still an issue? Well what if requests 
+are coming in every second? Your back to the same problem, the threads wont be closing quick enough. So it only solves the problem as long as the timeout is quicker then the requests 
+coming in.
+
+So how can we solve the problem fully? What if our movie-catalog-service was a little smarter, what if it could detect which service (the movie-info-service which is calling slow
+external MovieDB API) was being slow and then decide to stop blindly sending requests? Basically give the movie-info-service a break. After a while it can start to send requests
+again to see if its recovered, and if so thats great. If it starts to slow again once more it stops sending requests for awhile. So basically if the microservice has an issue,
+calling it give it time to recover then try again. This is called the "Circuit Breaker Pattern" and its steps involve:
+
+-detect something is wrong
+-take some temporary steps to make sure the situation doesnt get worse.
+-deactivate the "problem" component so it doesnt cause any other problems downstream.
+
+...Circuit Breaker is a good name because it acts like on. Basically stop the thing thats giving problems then either manually or automatically the circuit will be switched back on.
+
+So how do we apply this solution? Firstly you cant and shouldnt apply it to every microservice because not all microservices that run slow is nessesarily that services fault.
+Also a service that only calls one other service isnt really trying to manage multiple requests so whats the point? 
+It is esspecially important though to apply this pattern to a microservice which is calling two or more services (eg movie-catalog-service) because we wont to stop a slow
+service affecting calls to the fast ones.
+
+So if we have a circuit breaker in our code, what do we do? If a request comes in what should it do? It has to send back something? It cant just tell the user "Nope not now" :D
+Well firstly every circut break must be triggered by something, what parameter triggers it? One timeout would be harsh, so when do we say enough is enough, stop now? You could
+say if it fails three times in a row? But what if it fails every second time? The logic you set to trigger a circuit break needs to be smart enough to accomodate abunch of use 
+cases. So what do we consider:
+
+When should the circuit trip?
+-How many requests do we take into consideration when making the desicion? Thats our scope, we never judge on a single request. 
+-Out of those requests how many should fail? 7/10 6/10 9/10??
+-Timeout duration, at what point in time do you consider a request a failure?
+
+When should the circuit untrip?
+How long do we wait after a trip to try again?
+
+...Lets take an example withe the following params
+Request scope: 5
+Failure amount: 3/5
+Timeout amount: 2s
+Wait for retry: 10s
+
+Now lets say we get 5 requests (simple example, in production you need to calulate based on capacity, thread pool size etc, it can very much be a trial and error thing)
+100ms - pass
+3s - fail
+300ms - pass
+4s - fail
+4s -fail
+
+...Now im going to sending requests to this service for 10s
+
+Okay so we know what causes a circuit to trip and untrip, now back to the question above, what do we do when the circuit needs to be tripped. Requests are still coming in,
+how are we going to handle them now? Basically movie-catalog-service is still getting requests and which should then go to movie-info-service however it cant because its waiting to
+give it a chance to fix itself.
+
+The answer is we need a fallback. Essentially a secondary mechanism these services can do when the service its supposed to call is down. Basically we say, when a circuit breaks,
+dont do this, instead do this. So what kind a fallbacks can we do:
+-Throw an error: Simple but not nice for the end user, this should be your last resort. Other services will also have to catch it. This gets very messy very fast.
+-Return a fallback default response - not ideal but better than error, send some sort of hardcoded response.
+-Save previous responses in cache and use the cache where possible. This would be your best option. The end user likely wont even know the microservice is broken.
+ It may not be the most up to date data but its a proper response with proper data.
+
+Recap on why circuit breakers is here: https://www.youtube.com/watch?v=CSqxIKJhFRI&list=PLqq-6Pq4lTTbXZY_elyGv7IkKrfkSrX5e&index=14
+
+Hystrix
+Now creating a circuit breaker from scratch is a very long job, fortunately there are technolgies out there already that do this for you. The one used in these tutorials
+is called Hystrix. Hystix is an open source circuit breaker library created by netflix. You simply give Hystrix your configuration params and it does the work. It also 
+works very well with spring boot and has been intregated with it. Spring boot (cloud specifically) has actually bundled their solutions which is great. 
+
+docs: https://github.com/Netflix/Hystrix/wiki
+Adding Hystrix to our project:
+-We add Hystrix to our project via a maven dependency.
+-Go to the main application class of the project and add the annotation @EnableCircuitBreaker
+-Add @HystrixCommand to methods that need circuit breakers (Now this method will do a circuit break when things go wrong, how does it know when things are wrong? Thats the next step)
+-Configure Hystrix behaviour (This involves adding the parameters we spoke of)
+
+When we use Hystrix it actually wraps the api entire class in a proxy class. So when this class creates an "instance" we actually get back an instance of this proxy class that 
+Hystrix has created. It is this proxy class that actually contains the circuit breaker logic. So when somebody makes a call Hystrix is constantly monitoring what its sending 
+back and forth. It checks the call, examines the response etc.
+
+
