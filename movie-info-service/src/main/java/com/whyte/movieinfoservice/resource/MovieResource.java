@@ -27,7 +27,7 @@ public class MovieResource {
         return new Movie(movieId, movieSummary.getTitle(), movieSummary.getOverview());
     }
 	
-	//Old hardcoded movie data used on micros service level 1 tutorial
+	//Old hardcoded movie data used on microservice level 1 tutorial
 	/*@RequestMapping("/{movieId}")
     public Movie getMovieInfo(@PathVariable("movieId") String movieId) {
 		return new Movie(movieId, "Name for ID " + movieId);

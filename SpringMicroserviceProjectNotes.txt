@@ -192,6 +192,31 @@ Adding Hystrix to our project:
 
 When we use Hystrix it actually wraps the api entire class in a proxy class. So when this class creates an "instance" we actually get back an instance of this proxy class that 
 Hystrix has created. It is this proxy class that actually contains the circuit breaker logic. So when somebody makes a call Hystrix is constantly monitoring what its sending 
-back and forth. It checks the call, examines the response etc.
+back and forth. It checks the call, examines the response etc. So when spring runs and calls a method of this instance its actually calling an instance of the Hystrix
+proxy which wraps the instance.
 
+https://www.youtube.com/watch?v=1EIb-4ipWFk&list=PLqq-6Pq4lTTbXZY_elyGv7IkKrfkSrX5e&index=18
+The method that may fail is annotated with @HystrixCommand and we pass it a fallback method to run if the call fails or timeout limit is passed. Now lets say we want to make our fallbacks
+more granular? eg If we have a method with two REST calls inside it lets extract each of these to its own method and give each of them a fallback. This could cause an issue,
+because now a method in our class is calling another method in the class. Its internal to the wrapper proxy and that means it doesnt have a say which means the fallback
+wont execute. The only way around this is to take the methods and add them to another class some sort of service class. This means we need to go outside our instance (through the
+hystrix proxy) which means it will get caught by the proxy and fallback will be implemented if the method fails.
 
+Now had do we add our custom parameters to Hystrix? (Request scope, Failure amount, Timeout amount, Wait for retry). Well we said how we can add parameters to the @HystrixCommand
+annotation. One of those is an array called commandProperties which can be passed to the annotation. The elements of the array specify the name and value of each property.
+
+https://www.youtube.com/watch?v=WfsomLHaSzQ&list=PLqq-6Pq4lTTbXZY_elyGv7IkKrfkSrX5e&index=21
+Hystrix comes with its own dashboard called the hystrix dashboard. Shows things like the different circuits in the system, circuits open/closed, no of requests coming in, number 
+of timeouts etc. Each application could have its own dashboard or you could set up an external dashboard to monitor several applications (use something called turbine for this).
+
+BULKHEAD Pattern: https://www.youtube.com/watch?v=Kh3HxWk8YF4&list=PLqq-6Pq4lTTbXZY_elyGv7IkKrfkSrX5e&index=22
+We learned of some different techniques for dealing with microservices going down and being slow. Some solutions are, adding more instances, creating timeouts and implementing a 
+curcuit breaker pattern.
+
+Another technique is called the bulkhead pattern. It follows the principle of ship building. A large ship my have watertight compartments or bulkheads. Each compartment is watertight
+so if water spills in it will only flood those rooms not the whole ship. In the case we are dealing with where the movie-info-service is slow hence all threads making calls to 
+that service are blocked what if we could create a watertight bulkhead to encapsulate that failing area and stop the rest of our app from "sinking". So what if each area had
+completely separate thread pools? Even if service B has used all its threads it wont affect the thread pool of service A.
+
+We can also use Hystrix to configure this type of setup and bring an extra layer of fault tolerence. Essentially we use Hystrix parameters to specify that this particular service
+will only use X amount of threads in the thread pool.
