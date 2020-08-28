@@ -19,3 +19,5 @@ This application also introduces the basic idea of discovery services (using Eur
 Eureka is used to find which service to hit without hard coding URLS and some basic circuit breaking with fallback is in place if the movie-info-service fails (try running application without this service to see fallback)
 
 To run first start the discovery service followed by the other microservices. Each microservice is a spring boot application.
+
+**There is a second branch called "better fault tolerence" which expands on the master by adding bulkhead pattern, hystrix dashboard and more granular levels of fault tolerence**
